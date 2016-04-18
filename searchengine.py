@@ -1,17 +1,17 @@
 import urllib.request
 from bs4 import *
 from urllib.parse import urljoin
-
+import sqlite3 
 #忽略单词列表
 ignorewords = set(['the', 'of', 'to' , 'and' , 'a', 'in' , 'is' , 'it'])
 class crawler:
     #初始化类 传入数据库名称
     def __init__(self,dbname):
-        pass
+        self.con = sqlite.connect(dbname)
     def __def__(self):
-        pass
+        self.con.close()
     def dbcommit(self):
-        pass
+        self.con.commit()
     #获取条目id 如果条目不存在，加入数据库
     def getentryid(self,table,field,value,createnew = True):
         return None
@@ -59,6 +59,17 @@ class crawler:
             
     #创建数据库表
     def createindextables(self):
-        pass
+        self.con.execute('create table urllist(url)')
+        self.con.execute('create table wordlist(word)')
+        self.con.execute('create table wordlocation(urlid,wordid,location)')
+        self.con.execute('create table link(fromid integer,toid,integer)')
+        self.con.execute('create table linkwords(wordid , linkid)')
+        self.con.execute('create index wordidx on wordlist(word)')
+        self.con.execute('create index urlidx on urllist(url)')
+        self.con.execute('create index wordurlidx on wordlocation(wordid)')
+        self.con.execute('create index urltoidx on link(toid)')
+        self.con.execute('create index urlfromidx on link(fromid)')
+        self.dbcommit()
+        
     
     
