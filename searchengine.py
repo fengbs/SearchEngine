@@ -7,7 +7,7 @@ ignorewords = set(['the', 'of', 'to' , 'and' , 'a', 'in' , 'is' , 'it'])
 class crawler:
     #初始化类 传入数据库名称
     def __init__(self,dbname):
-        self.con = sqlite.connect(dbname)
+        self.con = sqlite3.connect(dbname)
     def __def__(self):
         self.con.close()
     def dbcommit(self):
@@ -20,10 +20,20 @@ class crawler:
         print('Indexing %s' % url)
     #在html中提取文字
     def gettextonly(self,soup):
-        return None
+        v=soup.string
+        if v == None:
+            c = soup.contents
+            resulttext = ''
+            for t in c:
+                subtext = self.gettextonly(t)
+                resulttext += subtext+'\n'
+            return resulttext
+        else:
+            return v.strip()
     #分割词汇
     def separatewords(self,text):
-        return None
+        splitter = re.compile('\\W*')
+        return [s.lower() for s in splitter.split(text) if s!='']
     #如果url已经建立索引，那么返回True
     def isindexed(self,url):
         return False
