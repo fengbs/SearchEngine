@@ -121,7 +121,7 @@ class crawler:
         print('%s' % str)
 class searcher:
     def __init__(self,dbname):
-        self.con = sqlite.connect(dbname)
+        self.con = sqlite3.connect(dbname)
     def __del__(self):
         self.con.close()
     def getmatchrows(self,q):
@@ -137,7 +137,7 @@ class searcher:
 
         for word in words:
             #获取单词id
-            wordid = self.con.execute(
+            wordrow = self.con.execute(
                 "select rowid from wordlist where word = '%s'" % word).fetchone()
             if wordrow != None:
                 wordid = wordrow[0]
