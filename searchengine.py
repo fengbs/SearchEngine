@@ -1,7 +1,8 @@
 import urllib.request
 from bs4 import *
 from urllib.parse import urljoin
-import sqlite3 
+import sqlite3
+import re
 #忽略单词列表
 ignorewords = set(['the', 'of', 'to' , 'and' , 'a', 'in' , 'is' , 'it'])
 class crawler:
@@ -14,16 +15,23 @@ class crawler:
         self.con.commit()
     #获取条目id 如果条目不存在，加入数据库
     def getentryid(self,table,field,value,createnew = True):
-        cur = self.con.execute("select rowid form %s where %s = '%s'"% (table ,field , value))
+        cur = self.con.execute("select rowid from %s where %s = '%s'"% (table ,field , value))
         res = cur.fetchone()
         if res == None:
             cur = self.con.execute("insert into %s (%s) values ('%s')" % (table ,field ,value))
+            return cur.lastrowid;
         else:
             return res[0]
-                
+    #判断是否为空
+    def isNULL(self,p):
+        if p==None:
+            return "None"
+        return p;
+                    
     #为每个网址建立索引
     def addtoindex(self,url,soup):
-        if self.indexed(url):return
+        if self.isindexed(url):
+            return
         print('Indexing' + url)
 
         #获取每个单词
@@ -38,6 +46,7 @@ class crawler:
             word = words[i]
             if word in ignorewords:continue
             wordid = self.getentryid('wordlist','word',word)
+            print(str(self.isNULL(urlid))+" "+str(self.isNULL(wordid))+" "+str(self.isNULL(i))+" "+str(self.isNULL(word)))
             self.con.execute("insert into wordlocation(urlid,wordid,location) values (%d,%d,%d)"% (urlid,wordid,i))
             
     #在html中提取文字
@@ -58,7 +67,7 @@ class crawler:
         return [s.lower() for s in splitter.split(text) if s!='']
     #如果url已经建立索引，那么返回True
     def isindexed(self,url):
-        u = self.con.execute("select rowid form urllist where url = '%s'" %url).fetchone()
+        u = self.con.execute("select rowid from urllist where url = '%s'" %url).fetchone()
         if u!=None:
             v = self.con.execute('select * from wordlocation where urlid = %d' % u[0]).fetchone()
             if v!=None:return True
@@ -165,7 +174,7 @@ class searcher:
         rankedscores = sorted([(score,url) for (url,score) in scores.items()],reverse = 1)
         for(score,urlid) in rankedscores[0:10]:
             print('%f\t%s' % (score,self.geturlname(urlid)))
-                    
+
         
     
     
