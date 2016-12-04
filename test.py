@@ -15,7 +15,11 @@
 #crawler.crawl(pages)
 
 #查询
+#import searchengine
+#e = searchengine.searcher('searchindex.db')
+#print(e.getmatchrows('login'))
+
 import searchengine
-e = searchengine.searcher('searchindex.db')
-print(e.getmatchrows('login'))
+e = searchengine.searcher('searchindex.db');
+e.query('login')
 

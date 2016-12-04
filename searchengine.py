@@ -152,6 +152,7 @@ class searcher:
                 tablenumber+=1
             # 根据各个组分，建立查询
             fullquery = 'select %s from %s where %s' % (fieldlist,tablelist,clauselist)
+            print('sql:%s'%fullquery)
             cur = self.con.execute(fullquery)
             rows = [row for row in cur]
 
@@ -159,7 +160,8 @@ class searcher:
     def getscoredlist(self,rows,wordids):
         totalscores = dict([(row[0],0) for row in rows])
         #评价函数
-        weight = []
+        #weights = [(1.0,self.locationscore( rows ))]
+        weights = [(1.0,self.locationscore( rows )),(1.0,self.frequencyscore(rows)),(1.0,self.pagerankscore(rows))]
         for (weight,scores) in weights:
             for url in totalscores:
                 totalscores[url] += weight*scores[url]
@@ -177,15 +179,66 @@ class searcher:
     def normalizescores(self,scores,smallIsBetter = 0):
         vsmall = 0.00001#避免被0整除
         if smallIsBetter:
-            minscore = min(scores,values())
+            minscore = min(scores.values())
             return dict([(u,float(minscore)/max(vsmall,l)) for (u,l) in scores.items()])
         else:
             maxscore = max(scores.values())
             if maxscore == 0 : maxscore = vsmall
-            return dict([(u,float(c)/maxscore) for (u,c) in scores.items()])
+            return dict([(u,float(c)/maxscore) for (u,c) in scores.items()]) 
+    def frequencyscore(self,rows):
+        counts = dict ( [ (row[0],0) for row in rows])
+        for row in rows: counts [ row[0] ] += 1
+        return self.normalizescores(counts)
+    def locationscore (self,rows):
+        locations = dict ( [ (row[0], 1000000 ) for row in rows ])
+        for row in rows:
+            loc = sum(row[1:])
+            if loc < locations[row[0]]: locations[row[0]] = loc
+        return self.normalizescores ( locations,smallIsBetter = 1)
+    def distancescore ( self,rows ):
+        # 如果仅有一个单词，则得分都一样
+        if  len(rows[0]) <= 2 :	return dict ([(row[0] ,1.0 ) for row in rows])
+        # 初始化字典，并填写一个很大的数
+        mindistance = dict ( [ (row [0],1000000) for row in rows])
+        for row in rows:
+            dist = sum ( [abs(rows[i] - row[i-1] ) for i in range ( 2 , len(row))])
+            if dist < mindistance[row[0]]:mindistance[row[0]] = dist
+        return self.normalizescores ( mindistance,smallIsBetter = 1 )
+    def inboundlinkscore ( self , rows )
+        uniqueurls = set ( [row[0] for row in rows] )
+        inboundcount = dict ( [ ( u , self,con.execute( \
+        'select count(*) from link where toid = %d' % u ).fetchone()[0] ) \
+        for u in uniqueurls ])
+        return self.normalizescores (inboundcount)
+    def calculatepagerank ( self,iterations = 20 )
+        # 清除当前的PageRank表
+        self.con.execute ('drop table if exists pagerank');
+        self.con.execute ('create table pagerank ( urlid primary key,score)')
+        
+        #初始化每个URL,令其Pagerank值为1
+        self.con.execute ('insert into pagerank select rowid , 1.0 from urllist')
+        self.dbcommit();
+        
+        for i in range (iterations):
+            print('iterator %d' % (i))
+            for ( urlid,) in self.con.execute( 'select rowid from urllist'):
+                pr = 0.15
             
-        
-
-        
-    
-    
+            #循环遍历指向该网页的其他网页
+            for ( linker,) in self.con.execute ( 
+            'select distinct fromid from link where toid = %d' % urlid):
+                #得到链接源对应网页的pagerank值
+                linkingpr = self.con.execute(
+                'select score from pagerank where urlid = %d' % linker).fetchone()[0]
+                #根据链接源求得总的连接数
+                linkingcount = self.con.execute (
+                'select count(*) from link where fromid = %d' % linker).fetchone()[0]
+                pr += 0.85 * (linkingpr/linkingcount)
+            self.con.execute ( 
+            'update pagerank set score = %f where urlid=%d' % (pr,urlid)
+        self.dbcommit() 
+    def pagerankscore (self,rows):
+        pageranks = dict([row[0] ,self.con.execute('select score from pagerank where urlid = %d ' % row[0]).fetchone()[0]) for row in rows])
+        maxrank = max (pageranks.values())
+        normalizedscores = dict ([(u,float(l)/maxrank) for (u,l) in pageranks.items()] )
+        return normalizedscores  
